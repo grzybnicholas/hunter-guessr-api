@@ -16,7 +16,7 @@ try:
         host = "us-cluster-east-01.k8s.cleardb.net",
         user = "b5a6f2bdc3b4ba",
         passwd = "f458826d",
-        database = "heroku_4137fb28e4a76f3" 
+        database = "heroku_4137fb28e4a76f3",
         ssl_disabled=True
     )
 
