@@ -1,1 +1,1 @@
-web: gunicorn app:hunterguessrapi
+web: gunicorn app:app
