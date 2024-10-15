@@ -15,7 +15,7 @@ try:
     MyDB = mysql.connector.connect(
         host = "us-cluster-east-01.k8s.cleardb.net",
         user = "b7cb1f42f9de35",
-        passwd = "1fe32160 ",
+        passwd = "1fe32160",
         database = "awsk_1ad786eee72ad786380b"
     )
 
