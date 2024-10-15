@@ -1,1 +1,1 @@
-web: python hunterguessrapi
+web: gunicorn app:hunterguessrapi
