@@ -14,9 +14,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 try:
     MyDB = mysql.connector.connect(
         host = "us-cluster-east-01.k8s.cleardb.net",
-        user = "b7cb1f42f9de35",
-        passwd = "1fe32160",
-        database = "awsk_1ad786eee72ad786380b"
+        user = "b5a6f2bdc3b4ba",
+        passwd = "f458826d",
+        database = "heroku_4137fb28e4a76f3" 
     )
 
     MyCursor = MyDB.cursor()
