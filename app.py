@@ -18,6 +18,8 @@ try:
         passwd = "f458826d",
         database = "heroku_4137fb28e4a76f3",
         ssl_disabled=True
+        pool_name="mypool",
+        pool_size=5
     )
 
     MyCursor = MyDB.cursor()
