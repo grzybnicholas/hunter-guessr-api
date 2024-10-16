@@ -13,7 +13,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 try:
     MyDB = mysql.connector.connect(
-        host = "us-cluster-east-01.k8s.cleardb.net",
+        host = "us-cluster-east-01.k8s.cleardb.net/heroku_4137fb28e4a76f3?reconnect=true",
         user = "b5a6f2bdc3b4ba",
         passwd = "f458826d",
         database = "heroku_4137fb28e4a76f3",
