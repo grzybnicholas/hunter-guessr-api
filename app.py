@@ -19,7 +19,7 @@ try:
         database = "heroku_4137fb28e4a76f3",
         ssl_disabled=True,
         pool_name="mypool",
-        pool_size=5
+        pool_size=5,
         autocommit=True,
         reconnect=True  
     )
