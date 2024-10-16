@@ -21,7 +21,6 @@ try:
         pool_name="mypool",
         pool_size=5,
         autocommit=True,
-        option_files="?reconnect=true"
     )
 
     MyCursor = MyDB.cursor()
