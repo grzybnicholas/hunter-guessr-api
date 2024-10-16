@@ -20,6 +20,8 @@ try:
         ssl_disabled=True,
         pool_name="mypool",
         pool_size=5
+        autocommit=True,
+        reconnect=True  
     )
 
     MyCursor = MyDB.cursor()
