@@ -13,11 +13,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 try:
     MyDB = mysql.connector.connect(
-        host = "us-cluster-east-01.k8s.cleardb.net",
-        user = "b5a6f2bdc3b4ba",
-        passwd = "f458826d",
-        database = "heroku_4137fb28e4a76f3",
-        ssl_disabled=True,
+        host = "utb1p8.stackhero-network.com",
+        user = "root",
+        passwd = "fMpWmSfSZiahU2ii0fbfTMne3kb7ZKie",
+        database = "Images" 
         pool_name="mypool",
         pool_size=5,
         autocommit=True,
