@@ -16,7 +16,7 @@ try:
         host = "utb1p8.stackhero-network.com",
         user = "root",
         passwd = "fMpWmSfSZiahU2ii0fbfTMne3kb7ZKie",
-        database = "Images" 
+        database = "Images",
         pool_name="mypool",
         pool_size=5,
         autocommit=True,
