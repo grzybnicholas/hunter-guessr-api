@@ -17,9 +17,10 @@ try:
         user = "root",
         passwd = "fMpWmSfSZiahU2ii0fbfTMne3kb7ZKie",
         database = "Images",
+        port = "5622",
         pool_name="mypool",
         pool_size=5,
-        autocommit=True,
+        autocommit=True
     )
 
     MyCursor = MyDB.cursor()
