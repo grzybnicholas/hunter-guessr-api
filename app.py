@@ -287,7 +287,7 @@ def insert_login():
         return jsonify({'error': 'Username and email are required'}), 400
 
     try:
-        InsertScore(username, score)
+        InsertLogin(username, email)
         return jsonify({'message': 'Login inserted successfully', 'username': username, 'email': email}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to insert login: {str(e)}'}), 500
