@@ -38,6 +38,13 @@ try:
                 score INTEGER(11) NOT NULL
             )
       """)
+    MyCursor.execute("""
+            CREATE TABLE IF NOT EXISTS Login (
+                id INTEGER(45) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL
+            )
+      """)
 except mysql.connector.Error as e:
     print(f"Database connection or setup failed: {str(e)}")
 
@@ -87,6 +94,27 @@ def RetrieveScore(user_id):
             return None
     except mysql.connector.Error as e:
         print(f"Failed to retrieve score: {str(e)}")
+        return None
+def InsertLogin(username, email):
+    try:
+        SQLStatement = "INSERT INTO Login (username, email) VALUES (%s, %s)"
+        MyCursor.execute(SQLStatement, (username, email))
+        MyDB.commit()
+        print("Score inserted successfully.")
+    except mysql.connector.Error as e:
+        print(f"Failed to insert score: {str(e)}")
+def RetrieveLogin(user_id):
+    try:
+        SQLStatement = "SELECT username, email FROM Login WHERE id = %s"
+        MyCursor.execute(SQLStatement, (user_id,))
+        result = MyCursor.fetchone()
+        if result:
+            return {'id': user_id, 'username': result[0], 'email': result[1]}
+        else:
+            print("Login not found.")
+            return None
+    except mysql.connector.Error as e:
+        print(f"Failed to retrieve login: {str(e)}")
         return None
 
 @app.route('/insert_image', methods=['POST'])
@@ -249,7 +277,49 @@ def delete_all_scores():
     except mysql.connector.Error as e:
         MyDB.rollback() 
         return jsonify({'error': f'Failed to delete scores: {str(e)}'}), 500
+@app.route('/insert_login', methods=['POST'])
+def insert_login():
+    data = request.get_json()
+    username = data.get('username')
+    email = data.get('email')
 
+    if not username or email is None:
+        return jsonify({'error': 'Username and email are required'}), 400
+
+    try:
+        InsertScore(username, score)
+        return jsonify({'message': 'Login inserted successfully', 'username': username, 'email': email}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to insert login: {str(e)}'}), 500
+@app.route('/retrieve_login/<int:user_id>', methods=['GET'])
+def retrieve_login(user_id):
+    try:
+        login_data = RetrieveLogin(user_id)
+        if login_data:
+            return jsonify(login_data), 200
+        else:
+            return jsonify({'error': 'Login not found'}), 404
+    except Exception as e:
+        return jsonify({'error': f'Failed to retrieve login: {str(e)}'}), 500
+@app.route('/retrieve_all_logins', methods=['GET'])
+def retrieve_all_logins():
+    try:
+        SQLStatement = "SELECT id, username, email FROM Login"
+        MyCursor.execute(SQLStatement)
+        Result = MyCursor.fetchall()
+        
+        login_list = []
+        for row in Result:
+            login_data = {
+                'id': row[0],
+                'username': row[1],
+                'email': row[2]
+            }
+            login_list.append(login_data)
+        
+        return jsonify(login_list), 200
+    except mysql.connector.Error as e:
+        return jsonify({'error': f'Failed to retrieve logins: {str(e)}'}), 500
 
 if __name__ == '__main__':
     try:
