@@ -320,6 +320,17 @@ def retrieve_all_logins():
         return jsonify(login_list), 200
     except mysql.connector.Error as e:
         return jsonify({'error': f'Failed to retrieve logins: {str(e)}'}), 500
+@app.route('/delete_all_logins', methods=['DELETE'])
+def delete_all_logins():
+    try:
+        SQLStatement = "DELETE FROM Login"
+        MyCursor.execute(SQLStatement)
+        MyDB.commit()
+        
+        return jsonify({'message': 'All logins deleted successfully'}), 200
+    except mysql.connector.Error as e:
+        MyDB.rollback() 
+        return jsonify({'error': f'Failed to delete logins: {str(e)}'}), 500
 
 if __name__ == '__main__':
     try:
