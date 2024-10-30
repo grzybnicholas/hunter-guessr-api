@@ -34,7 +34,7 @@ try:
     MyCursor.execute("""
             CREATE TABLE IF NOT EXISTS Scores (
                 id INTEGER(45) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                username VARCHAR(255) NOT NULL,
+                username VARCHAR(255) NOT NULL UNIQUE,
                 score INTEGER(11) NOT NULL
             )
       """)
@@ -79,6 +79,11 @@ def InsertScore(username, score):
         MyCursor.execute(SQLStatement, (username, score))
         MyDB.commit()
         print("Score inserted successfully.")
+    except mysql.connector.IntegrityError as e:
+        if "Duplicate entry" in str(e) and "username" in str(e):
+            print("Error: Username already exists. Please use a unique username.")
+        else:
+            print(f"Failed to insert score: {str(e)}")
     except mysql.connector.Error as e:
         print(f"Failed to insert score: {str(e)}")
 
@@ -233,6 +238,10 @@ def insert_score():
     try:
         InsertScore(username, score)
         return jsonify({'message': 'Score inserted successfully', 'username': username, 'score': score}), 200
+    except mysql.connector.IntegrityError as e:
+        if "Duplicate entry" in str(e):
+            return jsonify({'error': 'Username already exists. Please choose a different username.'}), 409
+        return jsonify({'error': f'Failed to insert score: {str(e)}'}), 500
     except Exception as e:
         return jsonify({'error': f'Failed to insert score: {str(e)}'}), 500
 
