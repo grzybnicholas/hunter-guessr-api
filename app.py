@@ -239,7 +239,7 @@ def insert_score():
         InsertScore(username, score)
         return jsonify({'message': 'Score inserted successfully', 'username': username, 'score': score}), 200
     except mysql.connector.IntegrityError as e:
-        if "Duplicate entry" in str(e):
+        if "Duplicate entry" in str(e) and "username" in str(e):
             return jsonify({'error': 'Username already exists. Please choose a different username.'}), 409
         return jsonify({'error': f'Failed to insert score: {str(e)}'}), 500
     except Exception as e:
