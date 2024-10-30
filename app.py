@@ -31,6 +31,13 @@ try:
             Photo LONGBLOB NOT NULL
         )
     """)
+    MyCursor.execute("""
+            CREATE TABLE IF NOT EXISTS Scores (
+                id INTEGER(45) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                score INTEGER(11) NOT NULL
+            )
+      """)
 except mysql.connector.Error as e:
     print(f"Database connection or setup failed: {str(e)}")
 
@@ -58,6 +65,28 @@ def RetrieveBlob(ID):
             return None
     except mysql.connector.Error as e:
         print(f"Failed to retrieve blob: {str(e)}")
+        return None
+def InsertScore(username, score):
+    try:
+        SQLStatement = "INSERT INTO Scores (username, score) VALUES (%s, %s)"
+        MyCursor.execute(SQLStatement, (username, score))
+        MyDB.commit()
+        print("Score inserted successfully.")
+    except mysql.connector.Error as e:
+        print(f"Failed to insert score: {str(e)}")
+
+def RetrieveScore(user_id):
+    try:
+        SQLStatement = "SELECT username, score FROM Scores WHERE id = %s"
+        MyCursor.execute(SQLStatement, (user_id,))
+        result = MyCursor.fetchone()
+        if result:
+            return {'id': user_id, 'username': result[0], 'score': result[1]}
+        else:
+            print("Score not found.")
+            return None
+    except mysql.connector.Error as e:
+        print(f"Failed to retrieve score: {str(e)}")
         return None
 
 @app.route('/insert_image', methods=['POST'])
@@ -163,3 +192,67 @@ def amount_of_images():
     except mysql.connector.Error as err:
         return jsonify({'error': f'Failed to retrieve amount of images: {str(err)}'}), 500
 
+
+@app.route('/insert_score', methods=['POST'])
+def insert_score():
+    data = request.get_json()
+    username = data.get('username')
+    score = data.get('score')
+
+    if not username or score is None:
+        return jsonify({'error': 'Username and score are required'}), 400
+
+    try:
+        InsertScore(username, score)
+        return jsonify({'message': 'Score inserted successfully', 'username': username, 'score': score}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to insert score: {str(e)}'}), 500
+
+@app.route('/retrieve_score/<int:user_id>', methods=['GET'])
+def retrieve_score(user_id):
+    try:
+        score_data = RetrieveScore(user_id)
+        if score_data:
+            return jsonify(score_data), 200
+        else:
+            return jsonify({'error': 'Score not found'}), 404
+    except Exception as e:
+        return jsonify({'error': f'Failed to retrieve score: {str(e)}'}), 500
+@app.route('/retrieve_all_scores', methods=['GET'])
+def retrieve_all_scores():
+    try:
+        SQLStatement = "SELECT id, username, score FROM Scores"
+        MyCursor.execute(SQLStatement)
+        Result = MyCursor.fetchall()
+        
+        scores_list = []
+        for row in Result:
+            score_data = {
+                'id': row[0],
+                'username': row[1],
+                'score': row[2]
+            }
+            scores_list.append(score_data)
+        
+        return jsonify(scores_list), 200
+    except mysql.connector.Error as e:
+        return jsonify({'error': f'Failed to retrieve scores: {str(e)}'}), 500
+
+@app.route('/delete_all_scores', methods=['DELETE'])
+def delete_all_scores():
+    try:
+        SQLStatement = "DELETE FROM Scores"
+        MyCursor.execute(SQLStatement)
+        MyDB.commit()
+        
+        return jsonify({'message': 'All scores deleted successfully'}), 200
+    except mysql.connector.Error as e:
+        MyDB.rollback() 
+        return jsonify({'error': f'Failed to delete scores: {str(e)}'}), 500
+
+
+if __name__ == '__main__':
+    try:
+        app.run(host='0.0.0.0', port=5000, debug=True)
+    except Exception as e:
+        print(f"Failed to start the server: {str(e)}")
