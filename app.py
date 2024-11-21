@@ -89,11 +89,11 @@ def InsertScore(username, score):
 
 def RetrieveScore(username):
     try:
-        SQLStatement = "SELECT username,score FROM Scores WHERE id = %s"
+        SQLStatement = "SELECT username,score FROM Scores WHERE username = %s"
         MyCursor.execute(SQLStatement, (username,))
         result = MyCursor.fetchone()
         if result:
-            return {'username':result[0],'score': result[1]}
+            return {'username': result[0],'score': result[1]}
         else:
             print("Score not found.")
             return None
