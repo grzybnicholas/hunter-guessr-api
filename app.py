@@ -202,7 +202,7 @@ def delete_all_images():
 def retrieve_image_for_guessing():
     try:
         SQLStatement = "SELECT id, Photo FROM Images ORDER BY RAND() LIMIT 1"
-        MyCursor.execute(SQLStatement)
+        MyCursor.execute(SQLStatement) 
         result = MyCursor.fetchone()
         
         if not result:
@@ -340,6 +340,21 @@ def delete_all_logins():
     except mysql.connector.Error as e:
         MyDB.rollback() 
         return jsonify({'error': f'Failed to delete logins: {str(e)}'}), 500
+
+@app.route('/retrieve_userID/<string:email>', methods=['GET'])
+def retrieve_userID(email):
+    try:
+        SQLStatement = "SELECT id FROM Login WHERE email = %s"
+        MyCursor.execute(SQLStatement, (email,))
+        result = MyCursor.fetchone()
+        if result:
+            return jsonify({'id': result[0]}), 200
+        else:
+            return jsonify({'error': 'User not found'}), 404
+    except mysql.connector.Error as e:
+        return jsonify({'error': f'Failed to retrieve user: {str(e)}'}), 500
+    
+
 
 if __name__ == '__main__':
     try:
