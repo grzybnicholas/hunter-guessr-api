@@ -105,9 +105,15 @@ def InsertLogin(username, email):
         SQLStatement = "INSERT INTO Login (username, email) VALUES (%s, %s)"
         MyCursor.execute(SQLStatement, (username, email))
         MyDB.commit()
-        print("Score inserted successfully.")
+        print("Username inserted successfully.")
+    except mysql.connector.IntegrityError as e:
+        if "Duplicate entry" in str(e) and "username" in str(e):
+            print("Error: Username already exists. Please use a unique username.")
+        else:
+            print(f"Failed to insert score: {str(e)}")
     except mysql.connector.Error as e:
         print(f"Failed to insert score: {str(e)}")
+
 def RetrieveLogin(email):
     try:
         SQLStatement = "SELECT username FROM Login WHERE email = %s"
