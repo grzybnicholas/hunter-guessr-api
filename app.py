@@ -108,13 +108,13 @@ def InsertLogin(username, email):
         print("Score inserted successfully.")
     except mysql.connector.Error as e:
         print(f"Failed to insert score: {str(e)}")
-def RetrieveLogin(user_id):
+def RetrieveLogin(email):
     try:
-        SQLStatement = "SELECT username, email FROM Login WHERE id = %s"
-        MyCursor.execute(SQLStatement, (user_id,))
+        SQLStatement = "SELECT username FROM Login WHERE email = %s"
+        MyCursor.execute(SQLStatement, (email,))
         result = MyCursor.fetchone()
         if result:
-            return {'id': user_id, 'username': result[0], 'email': result[1]}
+            return { 'username': result[0], 'email': result[1]}
         else:
             print("Login not found.")
             return None
@@ -300,10 +300,10 @@ def insert_login():
         return jsonify({'message': 'Login inserted successfully', 'username': username, 'email': email}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to insert login: {str(e)}'}), 500
-@app.route('/retrieve_login/<int:user_id>', methods=['GET'])
-def retrieve_login(user_id):
+@app.route('/retrieve_login/<string:email>', methods=['GET'])
+def retrieve_login(email):
     try:
-        login_data = RetrieveLogin(user_id)
+        login_data = RetrieveLogin(email)
         if login_data:
             return jsonify(login_data), 200
         else:
