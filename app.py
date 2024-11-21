@@ -114,7 +114,7 @@ def RetrieveLogin(email):
         MyCursor.execute(SQLStatement, (email,))
         result = MyCursor.fetchone()
         if result:
-            return { 'username': result[0], 'email': result[1]}
+            return { 'username': result[0]}
         else:
             print("Login not found.")
             return None
