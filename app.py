@@ -87,13 +87,13 @@ def InsertScore(username, score):
     except mysql.connector.Error as e:
         print(f"Failed to insert score: {str(e)}")
 
-def RetrieveScore(user_id):
+def RetrieveScore(username):
     try:
-        SQLStatement = "SELECT username, score FROM Scores WHERE id = %s"
-        MyCursor.execute(SQLStatement, (user_id,))
+        SQLStatement = "SELECT username,score FROM Scores WHERE username = %s"
+        MyCursor.execute(SQLStatement, (username,))
         result = MyCursor.fetchone()
         if result:
-            return {'id': user_id, 'username': result[0], 'score': result[1]}
+            return {'username': result[0],'score': result[1]}
         else:
             print("Score not found.")
             return None
@@ -108,13 +108,13 @@ def InsertLogin(username, email):
         print("Score inserted successfully.")
     except mysql.connector.Error as e:
         print(f"Failed to insert score: {str(e)}")
-def RetrieveLogin(user_id):
+def RetrieveLogin(email):
     try:
-        SQLStatement = "SELECT username, email FROM Login WHERE id = %s"
-        MyCursor.execute(SQLStatement, (user_id,))
+        SQLStatement = "SELECT username FROM Login WHERE email = %s"
+        MyCursor.execute(SQLStatement, (email,))
         result = MyCursor.fetchone()
         if result:
-            return {'id': user_id, 'username': result[0], 'email': result[1]}
+            return { 'username': result[0]}
         else:
             print("Login not found.")
             return None
@@ -245,10 +245,10 @@ def insert_score():
     except Exception as e:
         return jsonify({'error': f'Failed to insert score: {str(e)}'}), 500
 
-@app.route('/retrieve_score/<int:user_id>', methods=['GET'])
-def retrieve_score(user_id):
+@app.route('/retrieve_score/<string:username>', methods=['GET'])
+def retrieve_score(username):
     try:
-        score_data = RetrieveScore(user_id)
+        score_data = RetrieveScore(username)
         if score_data:
             return jsonify(score_data), 200
         else:
@@ -300,10 +300,10 @@ def insert_login():
         return jsonify({'message': 'Login inserted successfully', 'username': username, 'email': email}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to insert login: {str(e)}'}), 500
-@app.route('/retrieve_login/<int:user_id>', methods=['GET'])
-def retrieve_login(user_id):
+@app.route('/retrieve_login/<string:email>', methods=['GET'])
+def retrieve_login(email):
     try:
-        login_data = RetrieveLogin(user_id)
+        login_data = RetrieveLogin(email)
         if login_data:
             return jsonify(login_data), 200
         else:
