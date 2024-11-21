@@ -300,6 +300,7 @@ def insert_login():
         return jsonify({'message': 'Login inserted successfully', 'username': username, 'email': email}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to insert login: {str(e)}'}), 500
+
 @app.route('/retrieve_login/<string:email>', methods=['GET'])
 def retrieve_login(email):
     try:
