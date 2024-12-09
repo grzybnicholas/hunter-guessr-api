@@ -302,10 +302,23 @@ def insert_login():
         return jsonify({'error': 'Username and email are required'}), 400
 
     try:
-        InsertLogin(username, email)
+        # Check if username already exists
+        SQLStatementCheck = "SELECT * FROM Login WHERE username = %s"
+        MyCursor.execute(SQLStatementCheck, (username,))
+        result = MyCursor.fetchone()
+
+        if result:
+            return jsonify({'error': 'Username already exists. Please choose a different username.'}), 409
+
+        # Insert new login record
+        SQLStatementInsert = "INSERT INTO Login (username, email) VALUES (%s, %s)"
+        MyCursor.execute(SQLStatementInsert, (username, email))
+        MyDB.commit()
+
         return jsonify({'message': 'Login inserted successfully', 'username': username, 'email': email}), 200
-    except Exception as e:
-        return jsonify({'error': f'Failed to insert login: {str(e)}'}), 500
+    except mysql.connector.Error as e:
+        return  jsonify({'message': 'Error has occured: ' + e}), 500
+    
 
 @app.route('/retrieve_login/<string:email>', methods=['GET'])
 def retrieve_login(email):
