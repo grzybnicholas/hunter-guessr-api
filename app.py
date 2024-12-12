@@ -89,25 +89,44 @@ def InsertScore(username, score):
 
 def RetrieveScore(username):
     try:
-        SQLStatement = "SELECT username,score FROM Scores WHERE username = %s"
+        SQLStatement = "SELECT username, score FROM Scores WHERE username = %s"
         MyCursor.execute(SQLStatement, (username,))
         result = MyCursor.fetchone()
         if result:
-            return {'username': result[0],'score': result[1]}
-        else:
-            print("Score not found.")
-            return None
+            return {'username': result[0], 'score': result[1]}
+        return None
     except mysql.connector.Error as e:
         print(f"Failed to retrieve score: {str(e)}")
         return None
+def UpsertScore(username, score):
+    try:
+        # Try to update first
+        SQLStatement = """
+            INSERT INTO Scores (username, score) 
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE score = VALUES(score)
+        """
+        MyCursor.execute(SQLStatement, (username, score))
+        MyDB.commit()
+        return True
+    except mysql.connector.Error as e:
+        print(f"Failed to upsert score: {str(e)}")
+        MyDB.rollback()
+        return False
 def InsertLogin(username, email):
     try:
         SQLStatement = "INSERT INTO Login (username, email) VALUES (%s, %s)"
         MyCursor.execute(SQLStatement, (username, email))
         MyDB.commit()
-        print("Score inserted successfully.")
+        print("Username inserted successfully.")
+    except mysql.connector.IntegrityError as e:
+        if "Duplicate entry" in str(e) and "username" in str(e):
+            print("Error: Username already exists. Please use a unique username.")
+        else:
+            print(f"Failed to insert score: {str(e)}")
     except mysql.connector.Error as e:
         print(f"Failed to insert score: {str(e)}")
+
 def RetrieveLogin(email):
     try:
         SQLStatement = "SELECT username FROM Login WHERE email = %s"
@@ -201,7 +220,8 @@ def delete_all_images():
 @app.route('/GrabImageForGuessing', methods=['GET'])
 def retrieve_image_for_guessing():
     try:
-        SQLStatement = "SELECT id, Photo FROM Images ORDER BY RAND() LIMIT 1"
+        
+        SQLStatement = "SELECT id, file_name, Photo FROM Images ORDER BY RAND() LIMIT 1"
         MyCursor.execute(SQLStatement)
         result = MyCursor.fetchone()
         
@@ -209,11 +229,13 @@ def retrieve_image_for_guessing():
             return jsonify({'error': 'No images found'}), 404
         
         image_id = result[0]
-        photo = base64.b64encode(result[1]).decode('utf-8')
+        file_name = result[1]  
+        photo = base64.b64encode(result[2]).decode('utf-8')
         
-        return jsonify({'id': image_id, 'photo': photo}), 200
+        return jsonify({'id': image_id, 'file_name': file_name, 'photo': photo}), 200
     except mysql.connector.Error as err:
         return jsonify({'error': f'Failed to retrieve image: {str(err)}'}), 500
+
 
 @app.route('/AmountOfImages', methods=['GET'])
 def amount_of_images():
@@ -228,33 +250,55 @@ def amount_of_images():
 
 @app.route('/insert_score', methods=['POST'])
 def insert_score():
-    data = request.get_json()
-    username = data.get('username')
-    score = data.get('score')
-
-    if not username or score is None:
-        return jsonify({'error': 'Username and score are required'}), 400
-
     try:
-        InsertScore(username, score)
-        return jsonify({'message': 'Score inserted successfully', 'username': username, 'score': score}), 200
-    except mysql.connector.IntegrityError as e:
-        if "Duplicate entry" in str(e) and "username" in str(e):
-            return jsonify({'error': 'Username already exists. Please choose a different username.'}), 409
-        return jsonify({'error': f'Failed to insert score: {str(e)}'}), 500
-    except Exception as e:
-        return jsonify({'error': f'Failed to insert score: {str(e)}'}), 500
+        data = request.get_json()
+        if not data or 'username' not in data or 'score' not in data:
+            return jsonify({
+                'error': 'Missing required fields',
+                'message': 'Username and score are required'
+            }), 400
 
+        username = data['username']
+        score = data['score']
+
+        if not isinstance(score, (int, float)):
+            return jsonify({
+                'error': 'Invalid score type',
+                'message': 'Score must be a number'
+            }), 400
+
+        if UpsertScore(username, score):
+            return jsonify({
+                'message': 'Score updated successfully',
+                'username': username,
+                'score': score
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Database operation failed',
+                'message': 'Failed to update score'
+            }), 500
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'message': 'Internal server error while inserting score'
+        }), 500
 @app.route('/retrieve_score/<string:username>', methods=['GET'])
 def retrieve_score(username):
     try:
         score_data = RetrieveScore(username)
         if score_data:
             return jsonify(score_data), 200
-        else:
-            return jsonify({'error': 'Score not found'}), 404
+
+        return jsonify({
+            'message': 'Score not found for user',
+            'username': username
+        }), 404
     except Exception as e:
-        return jsonify({'error': f'Failed to retrieve score: {str(e)}'}), 500
+        return jsonify({
+            'error': str(e),
+            'message': 'Internal server error while retrieving score'
+        }), 500
 @app.route('/retrieve_all_scores', methods=['GET'])
 def retrieve_all_scores():
     try:
@@ -286,6 +330,35 @@ def delete_all_scores():
     except mysql.connector.Error as e:
         MyDB.rollback() 
         return jsonify({'error': f'Failed to delete scores: {str(e)}'}), 500
+@app.route('/update_score', methods=['PUT'])
+def update_score():
+    try:
+        data = request.get_json()
+        if not data or 'username' not in data or 'score' not in data:
+            return jsonify({
+                'error': 'Missing required fields',
+                'message': 'Username and score are required'
+            }), 400
+
+        username = data['username']
+        score = data['score']
+
+        if UpsertScore(username, score):
+            return jsonify({
+                'message': 'Score updated successfully',
+                'username': username,
+                'score': score
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Database operation failed',
+                'message': 'Failed to update score'
+            }), 500
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'message': 'Internal server error while updating score'
+        }), 500
 @app.route('/insert_login', methods=['POST'])
 def insert_login():
     data = request.get_json()
@@ -296,10 +369,24 @@ def insert_login():
         return jsonify({'error': 'Username and email are required'}), 400
 
     try:
-        InsertLogin(username, email)
+        
+        SQLStatementCheck = "SELECT * FROM Login WHERE username = %s"
+        MyCursor.execute(SQLStatementCheck, (username,))
+        result = MyCursor.fetchone()
+
+        if result:
+            return jsonify({'error': 'Username already exists. Please choose a different username.'}), 409
+
+       
+        SQLStatementInsert = "INSERT INTO Login (username, email) VALUES (%s, %s)"
+        MyCursor.execute(SQLStatementInsert, (username, email))
+        MyDB.commit()
+
         return jsonify({'message': 'Login inserted successfully', 'username': username, 'email': email}), 200
-    except Exception as e:
-        return jsonify({'error': f'Failed to insert login: {str(e)}'}), 500
+    except mysql.connector.Error as e:
+        return  jsonify({'message': 'Error has occured: ' + e}), 500
+    
+
 @app.route('/retrieve_login/<string:email>', methods=['GET'])
 def retrieve_login(email):
     try:
@@ -340,6 +427,7 @@ def delete_all_logins():
     except mysql.connector.Error as e:
         MyDB.rollback() 
         return jsonify({'error': f'Failed to delete logins: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     try:
