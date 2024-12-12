@@ -207,7 +207,7 @@ def delete_all_images():
 @app.route('/GrabImageForGuessing', methods=['GET'])
 def retrieve_image_for_guessing():
     try:
-        # Adjust SQL statement to also retrieve the file_name
+        
         SQLStatement = "SELECT id, file_name, Photo FROM Images ORDER BY RAND() LIMIT 1"
         MyCursor.execute(SQLStatement)
         result = MyCursor.fetchone()
@@ -216,7 +216,7 @@ def retrieve_image_for_guessing():
             return jsonify({'error': 'No images found'}), 404
         
         image_id = result[0]
-        file_name = result[1]  # Get the file name
+        file_name = result[1]  
         photo = base64.b64encode(result[2]).decode('utf-8')
         
         return jsonify({'id': image_id, 'file_name': file_name, 'photo': photo}), 200
