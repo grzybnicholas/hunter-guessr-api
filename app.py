@@ -13,15 +13,30 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 try:
     MyDB = mysql.connector.connect(
-        host = "utb1p8.stackhero-network.com",
-        user = "root",
-        passwd = "fMpWmSfSZiahU2ii0fbfTMne3kb7ZKie",
-        database = "Images",
-        port = "5622",
-        pool_name="mypool",
-        pool_size=5,
-        autocommit=True
+        "host" = "utb1p8.stackhero-network.com",
+        "user" = "root",
+        "passwd" = "fMpWmSfSZiahU2ii0fbfTMne3kb7ZKie",
+        "database" = "Images",
+        "port" = "5622",
+       "raise_on_warnings": True,
+       "autocommit": True,
+       "pool_reset_session": True
     )
+try:
+    connection_pool = mysql.connector.pooling.MySQLConnectionPool(**MyDB)
+except mysql.connector.Error as err:
+    print(f"Error creating connection pool: {err}")
+    raise
+
+def get_db_connection():
+    try:
+        connection = connection_pool.get_connection()
+        connection.ping(reconnect=True, attempts=3, delay=5)
+        return connection
+    except mysql.connector.Error as err:
+        print(f"Error getting connection from pool: {err}")
+        raise
+
 
     MyCursor = MyDB.cursor()
     MyCursor.execute("""
@@ -220,24 +235,45 @@ def delete_all_images():
         return jsonify({'error': f'Failed to delete images: {str(err)}'}), 500
 
 @app.route('/GrabImageForGuessing', methods=['GET'])
-def retrieve_image_for_guessing():
+def grab_image_for_guessing():
+    connection = None
+    cursor = None
     try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
         
-        SQLStatement = "SELECT id, file_name, Photo FROM Images ORDER BY RAND() LIMIT 1"
-        MyCursor.execute(SQLStatement)
-        result = MyCursor.fetchone()
+      
+        count_query = "SELECT COUNT(*) as count FROM Images"
+        cursor.execute(count_query)
+        count_result = cursor.fetchone()
+        
+        if not count_result or count_result['count'] == 0:
+            return jsonify({"error": "No images available"}), 404
+            
+        query = "SELECT id, file_name, Photo FROM Images ORDER BY RAND() LIMIT 1"
+        cursor.execute(query)
+        result = cursor.fetchone()
         
         if not result:
-            return jsonify({'error': 'No images found'}), 404
+            return jsonify({"error": "No images available"}), 404
+            
+       
+        photo_base64 = base64.b64encode(result['Photo']).decode('utf-8')
         
-        image_id = result[0]
-        file_name = result[1]  
-        photo = base64.b64encode(result[2]).decode('utf-8')
+        return jsonify({
+            "id": result['id'],
+            "file_name": result['file_name'],
+            "photo": photo_base64
+        }), 200
         
-        return jsonify({'id': image_id, 'file_name': file_name, 'photo': photo}), 200
     except mysql.connector.Error as err:
-        return jsonify({'error': f'Failed to retrieve image: {str(err)}'}), 500
-
+        print(f"Database error in grab_image_for_guessing: {err}")
+        return jsonify({"error": str(err)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 @app.route('/AmountOfImages', methods=['GET'])
 def amount_of_images():
@@ -252,56 +288,71 @@ def amount_of_images():
 
 @app.route('/insert_score', methods=['POST'])
 def insert_score():
+    connection = None
+    cursor = None
     try:
         data = request.get_json()
         if not data or 'username' not in data or 'score' not in data:
-            return jsonify({
-                'error': 'Missing required fields',
-                'message': 'Username and score are required'
-            }), 400
+            return jsonify({"error": "Missing required fields"}), 400
 
-        username = data['username']
-        score = data['score']
+        connection = get_db_connection()
+        cursor = connection.cursor()
 
-        if not isinstance(score, (int, float)):
-            return jsonify({
-                'error': 'Invalid score type',
-                'message': 'Score must be a number'
-            }), 400
+        
+        check_query = "SELECT username FROM Login WHERE username = %s"
+        cursor.execute(check_query, (data['username'],))
+        if not cursor.fetchone():
+            return jsonify({"error": "User does not exist"}), 404
 
-        if UpsertScore(username, score):
-            return jsonify({
-                'message': 'Score updated successfully',
-                'username': username,
-                'score': score
-            }), 200
-        else:
-            return jsonify({
-                'error': 'Database operation failed',
-                'message': 'Failed to update score'
-            }), 500
-    except Exception as e:
+        connection.start_transaction()
+        
+        query = """
+            REPLACE INTO Scores (username, score)
+            VALUES (%s, %s)
+        """
+        cursor.execute(query, (data['username'], data['score']))
+        connection.commit()
+
         return jsonify({
-            'error': str(e),
-            'message': 'Internal server error while inserting score'
-        }), 500
+            "message": "Score updated successfully",
+            "username": data['username'],
+            "score": data['score']
+        }), 200
+
+    except mysql.connector.Error as err:
+        if connection:
+            connection.rollback()
+        print(f"Database error in insert_score: {err}")
+        return jsonify({"error": str(err)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 @app.route('/retrieve_score/<string:username>', methods=['GET'])
 def retrieve_score(username):
+    connection = None
+    cursor = None
     try:
-        score_data = RetrieveScore(username)
-        if score_data:
-            return jsonify(score_data), 200
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
         
-        # If no score exists, return a specific response
-        return jsonify({
-            'message': 'Score not found for user',
-            'username': username
-        }), 404
-    except Exception as e:
-        return jsonify({
-            'error': str(e),
-            'message': 'Internal server error while retrieving score'
-        }), 500
+        query = "SELECT username, score FROM Scores WHERE username = %s"
+        cursor.execute(query, (username,))
+        result = cursor.fetchone()
+        
+        if result:
+            return jsonify(result), 200
+        return jsonify({"message": "Score not found"}), 404
+        
+    except mysql.connector.Error as err:
+        print(f"Database error in retrieve_score: {err}")
+        return jsonify({"error": str(err)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 @app.route('/retrieve_all_scores', methods=['GET'])
 def retrieve_all_scores():
     try:
@@ -364,42 +415,73 @@ def update_score():
         }), 500
 @app.route('/insert_login', methods=['POST'])
 def insert_login():
-    data = request.get_json()
-    username = data.get('username')
-    email = data.get('email')
-
-    if not username or email is None:
-        return jsonify({'error': 'Username and email are required'}), 400
-
+    connection = None
+    cursor = None
     try:
-        # Check if username already exists
-        SQLStatementCheck = "SELECT * FROM Login WHERE username = %s"
-        MyCursor.execute(SQLStatementCheck, (username,))
-        result = MyCursor.fetchone()
+        data = request.get_json()
+        if not data or 'username' not in data or 'email' not in data:
+            return jsonify({"error": "Missing required fields"}), 400
 
-        if result:
-            return jsonify({'error': 'Username already exists. Please choose a different username.'}), 409
+        connection = get_db_connection()
+        cursor = connection.cursor()
 
-        # Insert new login record
-        SQLStatementInsert = "INSERT INTO Login (username, email) VALUES (%s, %s)"
-        MyCursor.execute(SQLStatementInsert, (username, email))
-        MyDB.commit()
+       
+        check_query = "SELECT username FROM Login WHERE email = %s"
+        cursor.execute(check_query, (data['email'],))
+        existing_user = cursor.fetchone()
 
-        return jsonify({'message': 'Login inserted successfully', 'username': username, 'email': email}), 200
-    except mysql.connector.Error as e:
-        return  jsonify({'message': 'Error has occured: ' + e}), 500
+        if existing_user:
+            return jsonify({"message": "User already exists"}), 200
+
+      
+        connection.start_transaction()
+        
+        insert_query = "INSERT INTO Login (username, email) VALUES (%s, %s)"
+        cursor.execute(insert_query, (data['username'], data['email']))
+        
+
+        score_query = "INSERT INTO Scores (username, score) VALUES (%s, 0)"
+        cursor.execute(score_query, (data['username'],))
+        
+        connection.commit()
+        return jsonify({"message": "User registered successfully"}), 200
+
+    except mysql.connector.Error as err:
+        if connection:
+            connection.rollback()
+        print(f"Database error in insert_login: {err}")
+        return jsonify({"error": str(err)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
     
 
 @app.route('/retrieve_login/<string:email>', methods=['GET'])
 def retrieve_login(email):
+    connection = None
+    cursor = None
     try:
-        login_data = RetrieveLogin(email)
-        if login_data:
-            return jsonify(login_data), 200
-        else:
-            return jsonify({'error': 'Login not found'}), 404
-    except Exception as e:
-        return jsonify({'error': f'Failed to retrieve login: {str(e)}'}), 500
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        
+        query = "SELECT username, email FROM Login WHERE email = %s"
+        cursor.execute(query, (email,))
+        result = cursor.fetchone()
+        
+        if result:
+            return jsonify(result), 200
+        return jsonify({"message": "User not found"}), 404
+        
+    except mysql.connector.Error as err:
+        print(f"Database error in retrieve_login: {err}")
+        return jsonify({"error": str(err)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 @app.route('/retrieve_all_logins', methods=['GET'])
 def retrieve_all_logins():
     try:
