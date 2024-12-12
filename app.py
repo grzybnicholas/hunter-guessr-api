@@ -100,7 +100,6 @@ def RetrieveScore(username):
         return None
 def UpsertScore(username, score):
     try:
-        # Try to update first
         SQLStatement = """
             INSERT INTO Scores (username, score) 
             VALUES (%s, %s)
